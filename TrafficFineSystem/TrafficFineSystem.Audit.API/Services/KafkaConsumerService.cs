@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.SignalR;
+using TrafficFineSystem.Audit.API.Hubs;
 using System.Text.Json;
 using Confluent.Kafka;
 using TrafficFineSystem.Audit.API.Data;
@@ -13,15 +15,18 @@ public class KafkaConsumerService : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly string _topic = "fine-status-events";
     private readonly ILogger<KafkaConsumerService> _logger;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
     public KafkaConsumerService(
         IConfiguration configuration, 
         IServiceProvider serviceProvider, 
-        ILogger<KafkaConsumerService> logger)
+        ILogger<KafkaConsumerService> logger,
+        IHubContext<NotificationHub> hubContext)
     {
         _configuration = configuration;
         _serviceProvider = serviceProvider;
         _logger = logger;
+        _hubContext = hubContext;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -76,6 +81,13 @@ public class KafkaConsumerService : BackgroundService
                         await dbContext.SaveChangesAsync(stoppingToken);
 
                         _logger.LogInformation("Log başarıyla FineHistories tablosuna kaydedildi.");
+                        
+                        
+                        await _hubContext.Clients.All.SendAsync(
+                            "ReceiveFineNotification", 
+                            $"Yeni bir işlem yapıldı! Ceza ID: {statusEvent.TrafficFineId}, İşlem: {statusEvent.ProcessType}", 
+                            cancellationToken: stoppingToken);
+                        
                     }
                     catch (Exception dbEx)
                     {
@@ -93,5 +105,9 @@ public class KafkaConsumerService : BackgroundService
         {
             _logger.LogError(ex, "Kafka dinlenirken bir hata oluştu.");
         }
+        
+        
+        
+        
     }
 }
