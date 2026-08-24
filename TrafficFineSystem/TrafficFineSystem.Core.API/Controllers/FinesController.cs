@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using TrafficFineSystem.Core.API.Data;
 using TrafficFineSystem.Core.API.Repositories.Interfaces;
 using TrafficFineSystem.Core.API.Services;
 using TrafficFineSystem.Shared.Entities;
@@ -11,6 +12,7 @@ namespace TrafficFineSystem.Core.API.Controllers;
 [ApiController]
 public class FinesController : ControllerBase
 {
+    private readonly AppDbContext _context;
     private readonly ITrafficFineRepository _fineRepository;
     private readonly IVehicleRepository _vehicleRepository;
     private readonly KafkaProducerService _kafkaProducerService; // Kafka servisini enjekte ediyoruz
@@ -18,11 +20,13 @@ public class FinesController : ControllerBase
     public FinesController(
         ITrafficFineRepository fineRepository, 
         IVehicleRepository vehicleRepository,
-        KafkaProducerService kafkaProducerService)
+        KafkaProducerService kafkaProducerService,
+        AppDbContext context)
     {
         _fineRepository = fineRepository;
         _vehicleRepository = vehicleRepository;
         _kafkaProducerService = kafkaProducerService;
+        _context = context;
     }
 
     [HttpGet]
@@ -68,4 +72,40 @@ public class FinesController : ControllerBase
 
         return Ok(createdFine);
     }
+    
+    
+    [HttpPut("{id}/status")]
+    public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateFineStatusRequest request)
+    {
+        var fine = await _context.Fines.FindAsync(id);
+        if (fine == null) 
+            return NotFound("Ceza bulunamadı.");
+
+        var previousStatus = fine.Status;
+        fine.Status = (FineStatus)request.NewStatus;
+        
+        // Önce kendi veritabanımızda cezayı güncelliyoruz
+        await _context.SaveChangesAsync();
+
+        // Kafka için event modelimizi oluşturuyoruz
+        var statusEvent = new FineStatusChangedEvent
+        {
+            TrafficFineId = fine.Id,
+            UserId = "System", // İleride Firebase entegrasyonuyla buraya gerçek User ID gelecek
+            ProcessDate = DateTime.UtcNow,
+            ProcessType = "Güncelleme",
+            Reason = request.Reason,
+            PreviousStatus = (int)previousStatus,
+            NewStatus = request.NewStatus
+        };
+
+        // Mesajı Kafka'ya fırlatıyoruz
+        await _kafkaProducerService.ProduceFineStatusChangedEventAsync(statusEvent);
+
+        return Ok(new { Message = "Ceza durumu başarıyla güncellendi ve loglandı.", Fine = fine });
+    }
+    
 }
+
+// Controller'ın en altına veya Shared klasörüne bu DTO'yu ekleyebilirsin
+public record UpdateFineStatusRequest(int NewStatus, string Reason);
