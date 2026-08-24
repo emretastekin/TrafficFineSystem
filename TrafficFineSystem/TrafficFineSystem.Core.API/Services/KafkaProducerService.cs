@@ -14,7 +14,7 @@ public class KafkaProducerService
         // docker-compose.yml dosyamızdaki Kafka adresini alıyoruz
         var producerconfig = new ProducerConfig
         {
-            BootstrapServers = configuration["Kafka:BootstrapServers"] ?? "127.0.0.1:9092"
+            BootstrapServers = configuration["Kafka:BootstrapServers"] ?? "localhost:9092"
         };
         
         _producer = new ProducerBuilder<Null, string>(producerconfig).Build();

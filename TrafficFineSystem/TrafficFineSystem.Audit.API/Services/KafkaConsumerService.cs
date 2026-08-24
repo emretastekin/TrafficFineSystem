@@ -29,7 +29,7 @@ public class KafkaConsumerService : BackgroundService
         var config = new ConsumerConfig
         {
             // BURASI ÇOK ÖNEMLİ: Eğer burada hard-coded (elle yazılmış) "host.docker.internal" varsa, onu "localhost:9092" yap.
-            BootstrapServers = _configuration["Kafka:BootstrapServers"] ?? "127.0.0.1:9092",
+            BootstrapServers = _configuration["Kafka:BootstrapServers"] ?? "localhost:9092",
             GroupId = "audit-api-group-" + Guid.NewGuid().ToString(),
             AutoOffsetReset = AutoOffsetReset.Earliest
         };
