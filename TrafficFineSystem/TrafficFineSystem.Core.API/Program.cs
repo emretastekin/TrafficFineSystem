@@ -80,6 +80,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization(); // Yetkilendirme servisini aktif ediyoruz
 
+
+// Redis Caching Ayarı
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    // docker-compose.yml dosyasındaki servis adımız 'redis'
+    options.Configuration = builder.Configuration.GetConnectionString("RedisConnection") ?? "localhost:6379";
+    options.InstanceName = "TrafficFineSystem_";
+});
+
+
+
 // Özel Yetkilendirme Servislerimiz:
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();

@@ -6,6 +6,8 @@ using TrafficFineSystem.Core.API.Services;
 using TrafficFineSystem.Shared.Entities;
 using TrafficFineSystem.Shared.Enums;
 using TrafficFineSystem.Shared.Events;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Text.Json;
 
 namespace TrafficFineSystem.Core.API.Controllers;
 
@@ -17,25 +19,52 @@ public class FinesController : ControllerBase
     private readonly ITrafficFineRepository _fineRepository;
     private readonly IVehicleRepository _vehicleRepository;
     private readonly KafkaProducerService _kafkaProducerService; // Kafka servisini enjekte ediyoruz
+    private readonly IDistributedCache _cache;
+    
 
     public FinesController(
         ITrafficFineRepository fineRepository, 
         IVehicleRepository vehicleRepository,
         KafkaProducerService kafkaProducerService,
-        AppDbContext context)
+        AppDbContext context,
+        IDistributedCache cache)
     {
         _fineRepository = fineRepository;
         _vehicleRepository = vehicleRepository;
         _kafkaProducerService = kafkaProducerService;
         _context = context;
+        _cache = cache;
     }
 
+    
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
+        string cacheKey = "finesList";
+        string? cachedFines = await _cache.GetStringAsync(cacheKey);
+
+        if (!string.IsNullOrEmpty(cachedFines))
+        {
+            // Veri Redis'te (Cache'de) varsa, oradan dön! (Hızlı yanıt)
+            var finesFromCache = JsonSerializer.Deserialize<IEnumerable<TrafficFine>>(cachedFines);
+            return Ok(finesFromCache);
+        }
+
+        // Veri Redis'te yoksa Veritabanından al
         var fines = await _fineRepository.GetAllAsync();
+
+        // Veritabanından alınan veriyi Redis'e yaz (10 dakika boyunca tutulsun)
+        var cacheOptions = new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
+        };
+
+        string serializedFines = JsonSerializer.Serialize(fines);
+        await _cache.SetStringAsync(cacheKey, serializedFines, cacheOptions);
+
         return Ok(fines);
     }
+    
 
     [HttpGet("vehicle/{vehicleId}")]
     public async Task<IActionResult> GetByVehicle(int vehicleId)
@@ -71,6 +100,8 @@ public class FinesController : ControllerBase
         };
 
         await _kafkaProducerService.ProduceFineStatusChangedEventAsync(statusEvent);
+        
+        await _cache.RemoveAsync("finesList");
 
         return Ok(createdFine);
     }
@@ -103,6 +134,8 @@ public class FinesController : ControllerBase
 
         // Mesajı Kafka'ya fırlatıyoruz
         await _kafkaProducerService.ProduceFineStatusChangedEventAsync(statusEvent);
+        
+        await _cache.RemoveAsync("finesList");
 
         return Ok(new { Message = "Ceza durumu başarıyla güncellendi ve loglandı.", Fine = fine });
     }
