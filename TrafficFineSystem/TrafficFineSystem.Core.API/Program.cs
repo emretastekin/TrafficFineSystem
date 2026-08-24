@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using TrafficFineSystem.Core.API.Data;
 using TrafficFineSystem.Core.API.Repositories;
 using TrafficFineSystem.Core.API.Repositories.Interfaces;
+using TrafficFineSystem.Core.API.Services;
+using System.Text.Json.Serialization;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,9 +16,14 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
 builder.Services.AddScoped<ITrafficFineRepository, TrafficFineRepository>();
 
+// Kafka servisimizi tekil (Singleton) olarak ekliyoruz
+builder.Services.AddSingleton<KafkaProducerService>();
 
 // Add services to the container.
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+});
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -37,11 +44,7 @@ app.UseRouting();
 app.UseAuthorization();
 
 app.MapStaticAssets();
-
-app.MapControllerRoute(
-        name: "default",
-        pattern: "{controller=Home}/{action=Index}/{id?}")
-    .WithStaticAssets();
+app.MapControllers();
 
 
 app.Run();
