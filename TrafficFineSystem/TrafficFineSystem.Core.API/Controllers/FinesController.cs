@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using TrafficFineSystem.Core.API.Data;
 using TrafficFineSystem.Core.API.Repositories.Interfaces;
+using TrafficFineSystem.Core.API.Security;
 using TrafficFineSystem.Core.API.Services;
 using TrafficFineSystem.Shared.Entities;
 using TrafficFineSystem.Shared.Enums;
@@ -44,6 +45,7 @@ public class FinesController : ControllerBase
     }
 
     [HttpPost]
+    [HasPermission("Fines.Create")]
     public async Task<IActionResult> Create(TrafficFine fine)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
