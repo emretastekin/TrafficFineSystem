@@ -85,4 +85,67 @@ public class FinesController : Controller
         return View(model);
     }
     
+    
+    // Cezanın detaylarını getirir (GET)
+    [HttpGet]
+    public async Task<IActionResult> Details(int id)
+    {
+        var client = _httpClientFactory.CreateClient("CoreApi");
+        
+        // YENİ EKLENEN KISIM: Kimliğimizi (Token) bu isteğe de ekliyoruz
+        var token = Request.Cookies["AuthToken"];
+        if (!string.IsNullOrEmpty(token))
+        {
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+
+        var response = await client.GetAsync($"/api/Fines/{id}");
+
+        if (response.IsSuccessStatusCode)
+        {
+            var jsonString = await response.Content.ReadAsStringAsync();
+            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var fine = JsonSerializer.Deserialize<TrafficFineViewModel>(jsonString, jsonOptions);
+            
+            return View(fine);
+        }
+
+        // HATA YAKALAYICIYI AKTİF ETTİK:
+        var error = await response.Content.ReadAsStringAsync();
+        throw new Exception($"API'den Hata Geldi: {response.StatusCode} - {error}");
+        
+    }
+    
+
+    // Cezanın durumunu günceller (POST)
+    [HttpPost]
+    public async Task<IActionResult> UpdateStatus(int id, int newStatus)
+    {
+        var client = _httpClientFactory.CreateClient("CoreApi");
+        
+        // Bu işlem yetki gerektirdiği için Token'ı cebimize koyuyoruz
+        var token = Request.Cookies["AuthToken"];
+        if (!string.IsNullOrEmpty(token))
+        {
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+
+        // Core.API'deki UpdateStatus metoduna durum (status) değerini yolluyoruz.
+        // Endpoint'inin [HttpPut("{id}/status")] olduğunu varsayıyoruz.
+        var payload = new { NewStatus = newStatus, Reason = "Durum web arayüzünden güncellendi." };
+        var jsonContent = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+        
+        var response = await client.PutAsync($"/api/Fines/{id}/status", jsonContent);
+
+        if (response.IsSuccessStatusCode)
+        {
+            // Başarılıysa yine detay sayfasına dönüp güncel hali görelim
+            return RedirectToAction("Details", new { id = id });
+        }
+
+        // Hata durumunda listeye geri at (İstersen buraya da hata mesajı basabilirsin)
+        return RedirectToAction("Index");
+    }
+    
+    
 }

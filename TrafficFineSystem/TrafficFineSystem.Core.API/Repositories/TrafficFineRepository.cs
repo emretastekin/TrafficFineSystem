@@ -3,6 +3,8 @@ using TrafficFineSystem.Core.API.Data;
 using TrafficFineSystem.Core.API.Repositories.Interfaces;
 using TrafficFineSystem.Shared.Entities;
 
+
+
 namespace TrafficFineSystem.Core.API.Repositories;
 
 public class TrafficFineRepository : ITrafficFineRepository

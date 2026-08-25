@@ -1,0 +1,63 @@
+@model TrafficFineSystem.WebApp.Models.TrafficFineViewModel
+
+@{
+    ViewData["Title"] = "Ceza Detayı";
+}
+
+<div class="container mt-4">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-info text-white">
+            <h4 class="mb-0">Ceza Detayları (Ceza ID: @Model.Id)</h4>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-3 fw-bold">Araç ID:</div>
+                <div class="col-md-9">@Model.VehicleId</div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-3 fw-bold">Ceza Tutarı:</div>
+                <div class="col-md-9 text-danger fw-bold">@Model.Amount.ToString("C")</div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-3 fw-bold">Kesim Tarihi:</div>
+                <div class="col-md-9">@Model.IssueDate.ToString("dd.MM.yyyy HH:mm")</div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-3 fw-bold">Mevcut Durum:</div>
+                <div class="col-md-9">
+                    @if (Model.Status == 1) { <span class="badge bg-warning text-dark fs-6">Yeni</span> }
+                    else if (Model.Status == 2) { <span class="badge bg-success fs-6">Ödendi</span> }
+                    else { <span class="badge bg-danger fs-6">İptal Edildi</span> }
+                </div>
+            </div>
+
+            <hr />
+            <h5 class="text-secondary">Durum Güncelle</h5>
+            <p class="text-muted small">Cezanın güncel durumunu buradan değiştirebilirsiniz. (Bu işlem Kafka üzerinden arka planda loglanacaktır).</p>
+            
+            <div class="d-flex gap-2 mt-3">
+                @if (Model.Status != 2)
+                {
+                    <!-- Durumu 'Ödendi' (2) Yapma Butonu -->
+                    <form asp-action="UpdateStatus" method="post">
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <input type="hidden" name="newStatus" value="2" />
+                        <button type="submit" class="btn btn-success">Tahsil Edildi (Ödendi)</button>
+                    </form>
+                }
+                
+                @if (Model.Status != 3)
+                {
+                    <!-- Durumu 'İptal' (3) Yapma Butonu -->
+                    <form asp-action="UpdateStatus" method="post">
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <input type="hidden" name="newStatus" value="3" />
+                        <button type="submit" class="btn btn-danger">Cezayı İptal Et</button>
+                    </form>
+                }
+                
+                <a asp-action="Index" class="btn btn-secondary ms-auto">Listeye Dön</a>
+            </div>
+        </div>
+    </div>
+</div>

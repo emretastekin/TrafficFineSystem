@@ -37,7 +37,7 @@
                         else { <span class="badge bg-danger">İptal</span> }
                     </td>
                     <td>
-                        <button class="btn btn-sm btn-info">Detay</button>
+                        <a asp-controller="Fines" asp-action="Details" asp-route-id="@fine.Id" class="btn btn-sm btn-info text-white">Detay</a>
                     </td>
                 </tr>
             }

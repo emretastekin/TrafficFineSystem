@@ -66,5 +66,31 @@
 <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
+<!-- Microsoft SignalR Kütüphanesi -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+
+<script>
+        // DİKKAT: Buradaki portu (XXXX) Audit.API projenin çalıştığı port ile değiştirmelisin!
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("http://localhost:5297/notificationHub") 
+            .withAutomaticReconnect()
+            .build();
+
+        // Audit.API'den "ReceiveFineNotification" mesajı geldiğinde tetiklenir
+        connection.on("ReceiveFineNotification", function (message) {
+            console.log("Sistemde bir değişiklik oldu, tablo güncelleniyor...", message);
+            
+            // Sayfayı sessizce yenileyerek tablonun en güncel halini ekrana basar
+            window.location.reload(); 
+        });
+
+        // Bağlantıyı başlat
+        connection.start().then(function () {
+            console.log("WebSocket bağlantısı başarıyla kuruldu! Gözetleme devrede.");
+        }).catch(function (err) {
+            return console.error("WebSocket bağlantı hatası: ", err.toString());
+        });
+</script>
+
 </body>
 </html>

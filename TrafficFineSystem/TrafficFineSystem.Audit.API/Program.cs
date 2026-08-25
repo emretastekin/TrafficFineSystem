@@ -12,6 +12,20 @@ builder.Services.AddDbContext<AuditDbContext>(options =>
 builder.Services.AddHostedService<KafkaConsumerService>();
 
 
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        // WebApp'in çalıştığı adresi (Örn: localhost:5129) buraya yazmalısın
+        policy.WithOrigins("http://localhost:5129", "https://localhost:5129") 
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials(); // SignalR için zorunlu
+    });
+});
+
+
+
 // ... (diğer servislerin altı) ...
 builder.Services.AddSignalR();
 
@@ -25,10 +39,13 @@ builder.Services.AddCors(options =>
         .AllowCredentials());
 });
 
+builder.Services.AddControllers();
 
 var app = builder.Build();
 
+app.UseRouting();
 app.UseCors("CorsPolicy");
+app.MapControllers();
 
 app.MapHub<NotificationHub>("/notificationHub");
 

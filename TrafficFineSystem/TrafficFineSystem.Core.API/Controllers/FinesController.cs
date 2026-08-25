@@ -71,6 +71,18 @@ public class FinesController : ControllerBase
         return Ok(fines);
     }
     
+    
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var fine = await _fineRepository.GetByIdAsync(id);
+        if (fine == null)
+            return NotFound("Ceza bulunamadı.");
+
+        return Ok(fine);
+    }
+    
+    
 
     [HttpGet("vehicle/{vehicleId}")]
     public async Task<IActionResult> GetByVehicle(int vehicleId)
