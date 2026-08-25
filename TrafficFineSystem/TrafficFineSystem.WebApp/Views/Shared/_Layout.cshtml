@@ -13,18 +13,29 @@
 <header>
     <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
         <div class="container-fluid">
-            <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">TrafficFineSystem.WebApp</a>
+            <!-- Sol üstteki ana başlık -->
+            <a class="navbar-brand" asp-area="" asp-controller="Fines" asp-action="Index">Trafik Ceza Yönetimi</a>
+            
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
                     aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
+            
             <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                 <ul class="navbar-nav flex-grow-1">
+                    <!-- Sadece bizim menülerimiz -->
                     <li class="nav-item">
-                        <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                        <a class="nav-link text-dark" asp-area="" asp-controller="Fines" asp-action="Index">Cezalar</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                        <a class="nav-link text-dark" href="#">Araçlar</a>
+                    </li>
+                </ul>
+                
+                <!-- İleride Firebase giriş/çıkış butonunu buraya koyacağız -->
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link text-danger" href="#">Giriş Yap</a>
                     </li>
                 </ul>
             </div>
@@ -37,9 +48,9 @@
     </main>
 </div>
 
-<footer class="border-top footer text-muted">
-    <div class="container">
-        &copy; 2026 - TrafficFineSystem.WebApp - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+<footer class="border-top footer text-muted mt-5">
+    <div class="container text-center">
+        &copy; @DateTime.Now.Year - Trafik Ceza Yönetim Sistemi
     </div>
 </footer>
 <script src="~/lib/jquery/dist/jquery.min.js"></script>
