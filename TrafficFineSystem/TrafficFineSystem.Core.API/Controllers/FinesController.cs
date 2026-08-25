@@ -43,23 +43,29 @@ public class FinesController : ControllerBase
         string cacheKey = "finesList";
         string? cachedFines = await _cache.GetStringAsync(cacheKey);
 
+        // YENİ EKLENEN KISIM: Redis çevirileri için döngü yoksayma ayarı
+        var jsonOptions = new JsonSerializerOptions 
+        { 
+            ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
+            PropertyNameCaseInsensitive = true
+        };
+
         if (!string.IsNullOrEmpty(cachedFines))
         {
-            // Veri Redis'te (Cache'de) varsa, oradan dön! (Hızlı yanıt)
-            var finesFromCache = JsonSerializer.Deserialize<IEnumerable<TrafficFine>>(cachedFines);
+            // Veri Cache'de varsa, okurken de bu ayarı kullan
+            var finesFromCache = JsonSerializer.Deserialize<IEnumerable<TrafficFine>>(cachedFines, jsonOptions);
             return Ok(finesFromCache);
         }
 
-        // Veri Redis'te yoksa Veritabanından al
         var fines = await _fineRepository.GetAllAsync();
 
-        // Veritabanından alınan veriyi Redis'e yaz (10 dakika boyunca tutulsun)
         var cacheOptions = new DistributedCacheEntryOptions
         {
             AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
         };
 
-        string serializedFines = JsonSerializer.Serialize(fines);
+        // YENİ EKLENEN KISIM: Cache'e yazarken döngü yoksayma ayarını kullan
+        string serializedFines = JsonSerializer.Serialize(fines, jsonOptions);
         await _cache.SetStringAsync(cacheKey, serializedFines, cacheOptions);
 
         return Ok(fines);

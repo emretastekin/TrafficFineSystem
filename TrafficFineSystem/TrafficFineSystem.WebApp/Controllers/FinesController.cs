@@ -30,7 +30,59 @@ public class FinesController : Controller
             return View(fines);
         }
 
-        // Eğer API'ye ulaşılamazsa veya hata dönerse boş liste gönder
-        return View(new List<TrafficFineViewModel>());
+        // YENİ KOD: Eğer başarısızsa hatayı ekrana fırlat ki ne olduğunu görelim!
+        var errorMessage = await response.Content.ReadAsStringAsync();
+        throw new Exception($"Core.API'den Hata Geldi! Durum Kodu: {response.StatusCode}. Detay: {errorMessage}");
+        
     }
+    
+    
+    // Yeni ceza ekleme sayfasını açar (GET)
+    [HttpGet]
+    public IActionResult Create()
+    {
+        return View(new TrafficFineViewModel());
+    }
+
+    // Formdan gelen veriyi Core.API'ye gönderir (POST)
+    [HttpPost]
+    public async Task<IActionResult> Create(TrafficFineViewModel model)
+    {
+        if (!ModelState.IsValid)
+            return View(model);
+
+        var client = _httpClientFactory.CreateClient("CoreApi");
+        
+        // YENİ EKLENEN KISIM: Token'ı Cookie'den alıp isteğin başlığına (Header) ekliyoruz
+        var token = Request.Cookies["AuthToken"];
+        if (!string.IsNullOrEmpty(token))
+        {
+            // "Buyur memur bey, kimliğim (Token'ım) burada" diyoruz
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+        else
+        {
+            // Eğer token yoksa veya süresi dolmuşsa uyar
+            ModelState.AddModelError(string.Empty, "Oturumunuz bulunamadı. Lütfen tekrar giriş yapın.");
+            return View(model);
+        }
+
+        var jsonContent = new StringContent(
+            JsonSerializer.Serialize(model), 
+            System.Text.Encoding.UTF8, 
+            "application/json");
+
+        var response = await client.PostAsync("/api/Fines", jsonContent);
+
+        if (response.IsSuccessStatusCode)
+        {
+            return RedirectToAction("Index");
+        }
+
+        var error = await response.Content.ReadAsStringAsync();
+        ModelState.AddModelError(string.Empty, $"Ceza eklenirken API hatası: {error}");
+        
+        return View(model);
+    }
+    
 }

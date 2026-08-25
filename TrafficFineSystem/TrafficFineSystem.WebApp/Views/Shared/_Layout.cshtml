@@ -34,9 +34,18 @@
                 
                 <!-- İleride Firebase giriş/çıkış butonunu buraya koyacağız -->
                 <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link text-danger" href="#">Giriş Yap</a>
-                    </li>
+                    @if (Context.Request.Cookies.ContainsKey("AuthToken"))
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link text-danger" asp-area="" asp-controller="Auth" asp-action="Logout">Çıkış Yap</a>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link text-primary" asp-area="" asp-controller="Auth" asp-action="Login">Giriş Yap</a>
+                        </li>
+                    }
                 </ul>
             </div>
         </div>
