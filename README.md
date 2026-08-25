@@ -1,13 +1,21 @@
 Traffic Fine Management System (TrafficFineSystem)
 
-.NET 9 teknolojisi, Microservices mimari yaklaşımları ve Event-Driven (Olay Tabanlı) iletişim modelleri kullanılarak geliştirilmiş kapsamlı bir Trafik Cezası Yönetim ve Denetim (Audit) sistemidir.
+-->
+
+.NET 9 teknolojisi, Microservices mimari yaklaşımları ve Event-Driven (Olay Tabanlı) iletişim modelleri kullanılarak geliştirilmiş kapsamlı bir Trafik Cezası Yönetim ve Denetim (Audit) sistemidir. Sistem, güçlü bir arka plan (Backend) mimarisi ile kullanıcı dostu, gerçek zamanlı güncellenen bir Yönetim Paneli (Frontend) sunar.
 
 
---> Mimari ve Kullanılan Teknolojiler
+Mimari ve Kullanılan Teknolojiler
+
+-->
 
 Bu projede sorumlulukların ayrılması (SoC) ve servisler arası gevşek bağlılık (loose coupling) ilkeleri gözetilmiştir.
 
-Backend: .NET 9, ASP.NET Core Web API
+Backend & Frontend: .NET 9, ASP.NET Core Web API, ASP.NET Core MVC (Web Arayüzü)
+
+Kimlik Doğrulama & Güvenlik: Firebase Authentication (JWT Token, Cookie ve Role/Permission tabanlı yetkilendirme)
+
+Gerçek Zamanlı İletişim (Real-Time): SignalR (WebSocket)
 
 ORM: Entity Framework Core (Code-First yaklaşımı)
 
@@ -24,34 +32,41 @@ Test Otomasyonu: Selenium WebDriver, JUnit, Cucumber, Appium
 
 
 
---> Sistem Bileşenleri
+Sistem Bileşenleri
 
-Core.API (TrafficFineSystem.Core.API): Trafik cezalarının ve araçların yönetildiği ana servis. Yeni bir ceza oluşturulduğunda (Fine) ilgili olayları Kafka broker'ına publish eder.
+-->
 
-Audit.API (TrafficFineSystem.Audit.API): Arka planda çalışan tüketici (Consumer) servis. Kafka üzerindeki fine-status-events kanalını dinler, gelen olayları yakalar ve FineHistories tablosuna güvenli bir şekilde loglar.
+Core.API (TrafficFineSystem.Core.API): Trafik cezalarının ve araçların yönetildiği ana servistir. Firebase üzerinden gelen JWT Token'ları doğrular (Authorization). Yeni bir ceza oluşturulduğunda veya durumu güncellendiğinde (Örn: Yeni -> Ödendi), veritabanını günceller, Redis önbelleğini temizler ve ilgili olayları Kafka broker'ına publish eder.
+
+Audit.API (TrafficFineSystem.Audit.API): Arka planda çalışan tüketici (Consumer) servistir. Kafka üzerindeki fine-status-events kanalını dinler, gelen olayları yakalar ve FineHistories tablosuna güvenli bir şekilde loglar. Aynı zamanda SignalR Hub görevi görerek arayüze gerçek zamanlı güncellemeler fırlatır.
+
+WebApp (TrafficFineSystem.WebApp): Yöneticilerin sistemi kullandığı MVC tabanlı kontrol panelidir. Firebase üzerinden kullanıcı girişi sağlar. Core.API ile HTTP Client üzerinden güvenli (Bearer Token) haberleşir. İçerisindeki SignalR dinleyicisi sayesinde, sistemde bir ceza kesildiğinde veya güncellendiğinde sayfayı manuel yenilemeye gerek kalmadan tabloları anında günceller.
 
 Shared (TrafficFineSystem.Shared): Ortak kullanılan veritabanı modelleri, entity'ler ve event contract'larının bulunduğu katman.
 
 
 
 
---> Kurulum ve Çalıştırma Adımları
+Kurulum ve Çalıştırma Adımları
 
-Projeyi kendi lokal ortamınızda ayağa kaldırmak için aşağıdaki adımları sırasıyla takip edebilirsiniz.
+-->
+
+Projeyi lokal ortamınızda ayağa kaldırmak için aşağıdaki adımları sırasıyla takip edebilirsiniz.
 
 Ön Koşullar
+
 Docker ve Docker Compose
 
 .NET 9 SDK
 
 JetBrains Rider veya Visual Studio / VS Code
 
-
-
-
+Bir Firebase Projesi (Web API Key)
 
 
 1. Repoyu Klonlayın
+
+--> 
 
 git clone https://github.com/kullaniciadin/TrafficFineSystem.git
 cd TrafficFineSystem
@@ -62,37 +77,38 @@ cd TrafficFineSystem
 
 Projenin ana dizininde bulunan docker-compose.yml dosyasını kullanarak SQL Edge, Redis, Zookeeper ve Kafka servislerini başlatın:
 
+-->
+
 docker-compose up -d
 
 
-
 3. Veritabanı Migrations İşlemlerini Uygulayın
-   
+
 Core.API projesine ait veritabanı tablolarını ve migration'ları veritabanına yansıtın:
+
+-->
 
 dotnet ef database update --project TrafficFineSystem.Core.API
 
 
+4. Firebase Ayarlarını Yapılandırın
 
-4. Servisleri Çalıştırın
-   
-Sistemin olay tabanlı (event-driven) akışını test etmek için servisleri şu sıra ile çalıştırmanız önerilir:
+-->
 
---> Audit.API'yi Başlatın (Consumer):
-
-dotnet run --project TrafficFineSystem.Audit.API
+TrafficFineSystem.WebApp ve TrafficFineSystem.Core.API içerisindeki appsettings.json dosyalarına kendi Firebase API Key ve Project ID bilgilerinizi ekleyin.
 
 
 
---> Core.API'yi Başlatın (Producer) ve Test Edin:
+5. Servisleri Çalıştırın
 
-Core.API projesini çalıştırın ve Swagger arayüzüne (/swagger) gidin.
+-->
 
-Önce /api/Vehicles endpoint'ini kullanarak sisteme bir araç kaydedin.
+Sistemin olay tabanlı (event-driven) ve gerçek zamanlı akışını test etmek için projeleri aynı anda çalıştırın:
 
-Ardından /api/Fines endpoint'ini kullanarak yeni bir ceza oluşturun.
+TrafficFineSystem.Core.API (Producer & Main API)
 
-Core.API mesajı Kafka'ya iletecek, Audit.API ise bu mesajı anında yakalayarak FineHistories tablosuna işleyecektir.
+TrafficFineSystem.Audit.API (Consumer & SignalR Hub)
+
+TrafficFineSystem.WebApp (MVC UI)
 
 
-<img width="846" height="342" alt="image" src="https://github.com/user-attachments/assets/a8723542-4bce-4cd6-b4a7-75d21003577e" />
