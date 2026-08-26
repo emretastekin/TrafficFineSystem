@@ -4,6 +4,7 @@ using TrafficFineSystem.Shared.Entities;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using TrafficFineSystem.Core.API.Security;
 using TrafficFineSystem.Core.API.Services;
 using TrafficFineSystem.Shared.Events;
 
@@ -26,6 +27,7 @@ public class VehiclesController : ControllerBase
 
     
     [HttpGet]
+    [HasPermission("Vehicles.Read")]
     public async Task<IActionResult> GetAll()
     {
         string cacheKey = "vehiclesList";
@@ -61,6 +63,7 @@ public class VehiclesController : ControllerBase
     
 
     [HttpGet("{id}")]
+    [HasPermission("Vehicles.Read")]
     public async Task<IActionResult> GetById(int id)
     {
         var vehicle = await _vehicleRepository.GetByIdAsync(id);
@@ -69,6 +72,7 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpPost]
+    [HasPermission("Vehicles.Create")]
     public async Task<IActionResult> Create(Vehicle vehicle)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);

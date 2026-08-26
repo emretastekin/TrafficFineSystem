@@ -15,25 +15,37 @@ public class FinesController : Controller
 
     public async Task<IActionResult> Index()
     {
-        // "CoreApi" isimli client'ı çağırıyoruz (Base URL'i Program.cs'te tanımlamıştık)
-        var client = _httpClientFactory.CreateClient("CoreApi");
+        var token = Request.Cookies["AuthToken"];
         
-        // Core.API'deki GET /api/Fines endpoint'ine istek atıyoruz
+        // 1. KONTROL: Eğer kullanıcının token'ı (kimliği) hiç yoksa direkt giriş sayfasına yolla
+        if (string.IsNullOrEmpty(token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
+        var client = _httpClientFactory.CreateClient("CoreApi");
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        
         var response = await client.GetAsync("/api/Fines");
 
         if (response.IsSuccessStatusCode)
         {
             var jsonString = await response.Content.ReadAsStringAsync();
-            var fines = JsonSerializer.Deserialize<List<TrafficFineViewModel>>(jsonString);
-            
-            // Veriyi ekrana (View'a) gönderiyoruz
+            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var fines = JsonSerializer.Deserialize<List<TrafficFineViewModel>>(jsonString, jsonOptions);
             return View(fines);
         }
 
-        // YENİ KOD: Eğer başarısızsa hatayı ekrana fırlat ki ne olduğunu görelim!
+        // 2. KONTROL: Token var ama API 401 (Yetkisiz) veya 403 (Yasak) döndüyse (Örn: Süresi dolmuşsa)
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized || response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            Response.Cookies.Delete("AuthToken"); // Geçersiz token'ı tarayıcıdan sil
+            return RedirectToAction("Login", "Auth"); // Giriş sayfasına yolla
+        }
+
+        // Eğer sunucu çöktüyse vb. başka bir hataysa o zaman hatayı göster
         var errorMessage = await response.Content.ReadAsStringAsync();
         throw new Exception($"Core.API'den Hata Geldi! Durum Kodu: {response.StatusCode}. Detay: {errorMessage}");
-        
     }
     
     

@@ -38,6 +38,7 @@ public class FinesController : ControllerBase
 
     
     [HttpGet]
+    [HasPermission("Fines.Read")]
     public async Task<IActionResult> GetAll()
     {
         string cacheKey = "finesList";
@@ -73,6 +74,7 @@ public class FinesController : ControllerBase
     
     
     [HttpGet("{id}")]
+    [HasPermission("Fines.Read")]
     public async Task<IActionResult> GetById(int id)
     {
         var fine = await _fineRepository.GetByIdAsync(id);
@@ -85,6 +87,7 @@ public class FinesController : ControllerBase
     
 
     [HttpGet("vehicle/{vehicleId}")]
+    [HasPermission("Fines.Read")]
     public async Task<IActionResult> GetByVehicle(int vehicleId)
     {
         var fines = await _fineRepository.GetByVehicleIdAsync(vehicleId);
@@ -126,6 +129,7 @@ public class FinesController : ControllerBase
     
     
     [HttpPut("{id}/status")]
+    [HasPermission("Fines.Update")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateFineStatusRequest request)
     {
         var fine = await _context.Fines.FindAsync(id);

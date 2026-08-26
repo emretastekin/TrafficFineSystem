@@ -14,9 +14,20 @@ public class VehiclesController : Controller
     }
 
     // Araçları Listele (GET)
+    // Araçları Listele (GET)
     public async Task<IActionResult> Index()
     {
+        var token = Request.Cookies["AuthToken"];
+        
+        // 1. KONTROL: Token yoksa giriş sayfasına yolla
+        if (string.IsNullOrEmpty(token))
+        {
+            return RedirectToAction("Login", "Auth");
+        }
+
         var client = _httpClientFactory.CreateClient("CoreApi");
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        
         var response = await client.GetAsync("/api/Vehicles");
 
         if (response.IsSuccessStatusCode)
@@ -24,12 +35,20 @@ public class VehiclesController : Controller
             var jsonString = await response.Content.ReadAsStringAsync();
             var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             var vehicles = JsonSerializer.Deserialize<List<VehicleViewModel>>(jsonString, options);
-            
             return View(vehicles);
         }
 
+        // 2. KONTROL: Token bayatlamışsa veya yetkisi yoksa
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized || response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            Response.Cookies.Delete("AuthToken");
+            return RedirectToAction("Login", "Auth");
+        }
+
+        // Diğer hatalar için boş liste dön
         return View(new List<VehicleViewModel>());
     }
+    
 
     // Yeni Araç Ekleme Sayfası (GET)
     [HttpGet]
