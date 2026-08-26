@@ -1,0 +1,48 @@
+@model List<TrafficFineSystem.WebApp.Models.VehicleViewModel>
+@{
+    ViewData["Title"] = "Sistemdeki Araçlar";
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Araç Listesi</h2>
+        <a asp-controller="Vehicles" asp-action="Create" class="btn btn-primary">+ Yeni Araç Ekle</a>
+    </div>
+
+    <table class="table table-striped table-hover table-bordered">
+        <thead class="table-dark">
+        <tr>
+            <th>Araç ID</th>
+            <th>Plaka</th>
+            <th>Marka / Model</th>
+            <th>Araç Tipi (Tip Kodu)</th>
+        </tr>
+        </thead>
+        <tbody>
+        @if (Model != null && Model.Any())
+        {
+            foreach (var vehicle in Model)
+            {
+                <tr>
+                    <td>@vehicle.Id</td>
+                    <td><span class="badge bg-secondary fs-6">@vehicle.Plate</span></td>
+                    <td>@vehicle.BrandModel</td>
+                    <td>
+                        @if (vehicle.Type == 1) { <span>Binek</span> }
+                        else if (vehicle.Type == 2) { <span>Çekici</span> }
+                        else if (vehicle.Type == 3) { <span>Dorse</span> }
+                        else if (vehicle.Type == 4) { <span>Kiralık Araç</span> }
+                        else { <span class="text-muted">Bilinmeyen</span> }
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="3" class="text-center text-muted">Sistemde henüz kayıtlı araç bulunmuyor.</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

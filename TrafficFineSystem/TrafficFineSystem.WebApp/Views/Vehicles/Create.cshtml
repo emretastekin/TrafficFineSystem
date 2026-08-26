@@ -1,0 +1,47 @@
+@model TrafficFineSystem.WebApp.Models.VehicleViewModel
+@{
+    ViewData["Title"] = "Yeni Araç Ekle";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Yeni Araç Kaydı</h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Create" method="post">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="Plate" class="form-label">Plaka</label>
+                            <input asp-for="Plate" class="form-control" placeholder="Örn: 34 ABC 123" required />
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="BrandModel" class="form-label">Marka / Model</label>
+                            <input asp-for="BrandModel" class="form-control" placeholder="Örn: Renault Megane" required />
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Type" class="form-label">Araç Tipi</label>
+                            <select asp-for="Type" class="form-select" required>
+                                <option value="">Seçiniz...</option>
+                                <option value="1">Binek</option>
+                                <option value="2">Çekici</option>
+                                <option value="3">Dorse</option>
+                                <option value="4">Kiralık Araç</option>
+                            </select>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success">Kaydet</button>
+                            <a asp-action="Index" class="btn btn-secondary">İptal</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

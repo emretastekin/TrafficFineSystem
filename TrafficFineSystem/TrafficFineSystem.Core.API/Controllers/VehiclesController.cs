@@ -4,6 +4,8 @@ using TrafficFineSystem.Shared.Entities;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using TrafficFineSystem.Core.API.Services;
+using TrafficFineSystem.Shared.Events;
 
 namespace TrafficFineSystem.Core.API.Controllers;
 
@@ -13,11 +15,13 @@ public class VehiclesController : ControllerBase
 {
     private readonly IVehicleRepository _vehicleRepository;
     private readonly IDistributedCache _cache;
+    private readonly KafkaProducerService _kafkaProducerService;
 
-    public VehiclesController(IVehicleRepository vehicleRepository, IDistributedCache cache)
+    public VehiclesController(IVehicleRepository vehicleRepository, IDistributedCache cache, KafkaProducerService kafkaProducerService)
     {
         _vehicleRepository = vehicleRepository;
         _cache = cache;
+        _kafkaProducerService = kafkaProducerService;
     }
 
     
@@ -70,6 +74,15 @@ public class VehiclesController : ControllerBase
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
         var createdVehicle = await _vehicleRepository.AddAsync(vehicle);
+        
+        var vehicleEvent = new VehicleCreatedEvent 
+        {
+            VehicleId = createdVehicle.Id,
+            Plate = createdVehicle.Plate,
+            ProcessDate = DateTime.UtcNow
+        };
+        
+        await _kafkaProducerService.ProduceVehicleCreatedEventAsync(vehicleEvent);
         
         await _cache.RemoveAsync("vehiclesList");
         
