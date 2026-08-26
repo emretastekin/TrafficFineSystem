@@ -1,4 +1,22 @@
-﻿<!DOCTYPE html>
+﻿@using System.IdentityModel.Tokens.Jwt
+@{
+    string currentUserId = "";
+    var token = Context.Request.Cookies["AuthToken"];
+    if (!string.IsNullOrEmpty(token))
+    {
+        var handler = new JwtSecurityTokenHandler();
+        if (handler.CanReadToken(token))
+        {
+            var jwt = handler.ReadJwtToken(token);
+            // Firebase genelde "user_id" veya "sub" claim'i içinde UID tutar
+            currentUserId = jwt.Claims.FirstOrDefault(c => c.Type == "user_id" || c.Type == "sub")?.Value ?? "";
+        }
+    }
+}
+
+
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8"/>
@@ -37,7 +55,7 @@
                     @if (Context.Request.Cookies.ContainsKey("AuthToken"))
                     {
                         <li class="nav-item">
-                            <a class="nav-link text-danger" asp-area="" asp-controller="Auth" asp-action="Logout">Çıkış Yap</a>
+                            <a class="nav-link text-danger" asp-area="" asp-controller="Auth" asp-action="Logout" onclick="triggerTabSync()">Çıkış Yap</a>
                         </li>
                     }
                     else
@@ -70,38 +88,57 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
 
 <script>
+        // C#'tan gelen User ID'yi JS tarafına alıyoruz
+        const currentUserId = '@currentUserId';
+
         // DİKKAT: Buradaki portu (XXXX) Audit.API projenin çalıştığı port ile değiştirmelisin!
         const connection = new signalR.HubConnectionBuilder()
             .withUrl("http://localhost:5297/notificationHub") 
             .withAutomaticReconnect()
             .build();
 
-        // Audit.API'den "ReceiveFineNotification" mesajı geldiğinde tetiklenir
+        // 1. MEVCUT: Cezalar için dinleyici
         connection.on("ReceiveFineNotification", function (message) {
             console.log("Sistemde bir değişiklik oldu...", message);
-
-            // YENİ: Eğer "Details" (Detay) sayfasındaysak sayfayı yenileme! (Çünkü AJAX halledecek)
             if (!window.location.href.includes("Details")) {
                 window.location.reload();
             }
         });
 
-        // YENİ EKLENEN: Araç bildirimlerini dinleyen radyo kanalı
+        // 2. MEVCUT: Araçlar için dinleyici
         connection.on("ReceiveVehicleNotification", function (message) {
             console.log("Sisteme yeni bir araç eklendi...", message);
-
-            // Sadece "Araçlar" (Vehicles) listesindeysek sayfayı yenile (Form dolduruyorsak sayfayı bozma)
             if (window.location.href.includes("Vehicles") && !window.location.href.includes("Create")) {
                 window.location.reload();
             }
         });
 
+        // 3. YENİ: Merkezden gelen "Zorla Çıkış" emrini dinleyen radyo
+        connection.on("ForceLogout", function () {
+            console.log("Başka bir cihazdan/sekmeden çıkış yapıldı. Güvenlik için oturum kapatılıyor...");
+            window.location.href = '/Auth/Login'; 
+        });
+
         // Bağlantıyı başlat
         connection.start().then(function () {
             console.log("WebSocket bağlantısı başarıyla kuruldu! Gözetleme devrede.");
+            
+            // Eğer kullanıcı giriş yapmışsa (ID boş değilse), merkeze "Ben buradayım" de
+            if (currentUserId !== "") {
+                connection.invoke("RegisterUser", currentUserId);
+            }
+            
         }).catch(function (err) {
             return console.error("WebSocket bağlantı hatası: ", err.toString());
         });
+
+        // 4. YENİ: Navbar'daki 'Çıkış Yap' butonuna basıldığında bu fonksiyon çalışır
+        function triggerTabSync() {
+            if (currentUserId !== "") {
+                // Merkeze "Benim diğer tüm cihazlarımdaki sekmeleri kapat" sinyali gönderir
+                connection.invoke("NotifyLogout", currentUserId);
+            }
+        }
 </script>
 
 </body>
