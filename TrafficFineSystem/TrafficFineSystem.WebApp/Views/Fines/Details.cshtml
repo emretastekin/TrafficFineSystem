@@ -24,7 +24,7 @@
             </div>
             <div class="row mb-3">
                 <div class="col-md-3 fw-bold">Mevcut Durum:</div>
-                <div class="col-md-9">
+                <div class="col-md-9" id="status-badge">
                     @if (Model.Status == 1) { <span class="badge bg-warning text-dark fs-6">Yeni</span> }
                     else if (Model.Status == 2) { <span class="badge bg-success fs-6">Ödendi</span> }
                     else { <span class="badge bg-danger fs-6">İptal Edildi</span> }
@@ -35,29 +35,73 @@
             <h5 class="text-secondary">Durum Güncelle</h5>
             <p class="text-muted small">Cezanın güncel durumunu buradan değiştirebilirsiniz. (Bu işlem Kafka üzerinden arka planda loglanacaktır).</p>
             
-            <div class="d-flex gap-2 mt-3">
-                @if (Model.Status != 2)
-                {
-                    <!-- Durumu 'Ödendi' (2) Yapma Butonu -->
-                    <form asp-action="UpdateStatus" method="post">
-                        <input type="hidden" name="id" value="@Model.Id" />
-                        <input type="hidden" name="newStatus" value="2" />
-                        <button type="submit" class="btn btn-success">Tahsil Edildi (Ödendi)</button>
-                    </form>
-                }
+            <div class="d-flex gap-2 mt-3" id="action-buttons">
+                <!-- Durum 1 (Yeni) değilse 'Geri Al' butonunu göster -->
+                <button type="button" class="btn btn-warning text-dark" id="btn-new" onclick="updateStatusAjax(@Model.Id, 1)" style="display: @(Model.Status == 1 ? "none" : "block")">Geri Al (Yeni)</button>
                 
-                @if (Model.Status != 3)
-                {
-                    <!-- Durumu 'İptal' (3) Yapma Butonu -->
-                    <form asp-action="UpdateStatus" method="post">
-                        <input type="hidden" name="id" value="@Model.Id" />
-                        <input type="hidden" name="newStatus" value="3" />
-                        <button type="submit" class="btn btn-danger">Cezayı İptal Et</button>
-                    </form>
-                }
+                <!-- Durum 2 (Ödendi) değilse 'Ödendi' butonunu göster -->
+                <button type="button" class="btn btn-success" id="btn-pay" onclick="updateStatusAjax(@Model.Id, 2)" style="display: @(Model.Status == 2 ? "none" : "block")">Tahsil Edildi (Ödendi)</button>
+                
+                <!-- Durum 3 (İptal) değilse 'İptal' butonunu göster -->
+                <button type="button" class="btn btn-danger" id="btn-cancel" onclick="updateStatusAjax(@Model.Id, 3)" style="display: @(Model.Status == 3 ? "none" : "block")">Cezayı İptal Et</button>
                 
                 <a asp-action="Index" class="btn btn-secondary ms-auto">Listeye Dön</a>
             </div>
+            
         </div>
     </div>
 </div>
+
+
+
+
+@section Scripts {
+    <script>
+        async function updateStatusAjax(id, newStatus) {
+            // 1. Tıklanır tıklanmaz butonları kitle (Çift tıklanıp sistemi yormasın)
+            document.querySelectorAll('#action-buttons button').forEach(b => b.disabled = true);
+
+            // 2. Veriyi paketle
+            const formData = new FormData();
+            formData.append('id', id);
+            formData.append('newStatus', newStatus);
+
+            try {
+                // 3. Controller'a arka plandan sessizce isteği gönder (AJAX)
+                const response = await fetch('/Fines/UpdateStatus', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // 1. Ekrandaki rozeti (badge) güncelle
+                    const statusDiv = document.getElementById('status-badge');
+                    if (newStatus === 1) {
+                        statusDiv.innerHTML = '<span class="badge bg-warning text-dark fs-6">Yeni</span>';
+                    } else if (newStatus === 2) {
+                        statusDiv.innerHTML = '<span class="badge bg-success fs-6">Ödendi</span>';
+                    } else if (newStatus === 3) {
+                        statusDiv.innerHTML = '<span class="badge bg-danger fs-6">İptal Edildi</span>';
+                    }
+
+                    // 2. Butonları duruma göre göster/gizle (SİLME)
+                    document.getElementById('btn-new').style.display = newStatus === 1 ? 'none' : 'block';
+                    document.getElementById('btn-pay').style.display = newStatus === 2 ? 'none' : 'block';
+                    document.getElementById('btn-cancel').style.display = newStatus === 3 ? 'none' : 'block';
+
+                    // 3. Tıklama engelini kaldır ki tekrar basılabilsin
+                    document.querySelectorAll('#action-buttons button').forEach(b => b.disabled = false);
+
+                } else {
+                    alert("Hata: " + result.message);
+                    document.querySelectorAll('#action-buttons button').forEach(b => b.disabled = false);
+                }
+            } catch (error) {
+                console.error("İstek atılırken hata:", error);
+                document.querySelectorAll('#action-buttons button').forEach(b => b.disabled = false);
+            }
+        }
+    </script>
+}

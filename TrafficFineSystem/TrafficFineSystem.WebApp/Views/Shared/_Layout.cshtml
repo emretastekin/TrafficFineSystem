@@ -77,11 +77,13 @@
             .build();
 
         // Audit.API'den "ReceiveFineNotification" mesajı geldiğinde tetiklenir
-        connection.on("ReceiveFineNotification", function (message) {
-            console.log("Sistemde bir değişiklik oldu, tablo güncelleniyor...", message);
-            
-            // Sayfayı sessizce yenileyerek tablonun en güncel halini ekrana basar
-            window.location.reload(); 
+        onnection.on("ReceiveFineNotification", function (message) {
+            console.log("Sistemde bir değişiklik oldu...", message);
+
+            // YENİ: Eğer "Details" (Detay) sayfasındaysak sayfayı yenileme! (Çünkü AJAX halledecek)
+            if (!window.location.href.includes("Details")) {
+                window.location.reload();
+            }
         });
 
         // Bağlantıyı başlat

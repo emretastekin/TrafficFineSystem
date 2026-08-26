@@ -119,32 +119,28 @@ public class FinesController : Controller
 
     // Cezanın durumunu günceller (POST)
     [HttpPost]
-    public async Task<IActionResult> UpdateStatus(int id, int newStatus)
+    public async Task<IActionResult> UpdateStatus([FromForm] int id, [FromForm] int newStatus)
     {
         var client = _httpClientFactory.CreateClient("CoreApi");
         
-        // Bu işlem yetki gerektirdiği için Token'ı cebimize koyuyoruz
         var token = Request.Cookies["AuthToken"];
         if (!string.IsNullOrEmpty(token))
         {
             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         }
 
-        // Core.API'deki UpdateStatus metoduna durum (status) değerini yolluyoruz.
-        // Endpoint'inin [HttpPut("{id}/status")] olduğunu varsayıyoruz.
-        var payload = new { NewStatus = newStatus, Reason = "Durum web arayüzünden güncellendi." };
+        var payload = new { NewStatus = newStatus, Reason = "Durum web arayüzünden güncellendi (AJAX)." };
         var jsonContent = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
         
         var response = await client.PutAsync($"/api/Fines/{id}/status", jsonContent);
 
         if (response.IsSuccessStatusCode)
         {
-            // Başarılıysa yine detay sayfasına dönüp güncel hali görelim
-            return RedirectToAction("Details", new { id = id });
+            // İşlem başarılıysa arayüze (JS'e) "Tamamdır" mesajı gönderiyoruz
+            return Json(new { success = true });
         }
 
-        // Hata durumunda listeye geri at (İstersen buraya da hata mesajı basabilirsin)
-        return RedirectToAction("Index");
+        return Json(new { success = false, message = "Güncelleme sırasında bir hata oluştu." });
     }
     
     
