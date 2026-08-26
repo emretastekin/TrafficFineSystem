@@ -43,7 +43,7 @@
                 <button type="button" class="btn btn-success" id="btn-pay" onclick="updateStatusAjax(@Model.Id, 2)" style="display: @(Model.Status == 2 ? "none" : "block")">Tahsil Edildi (Ödendi)</button>
                 
                 <!-- Durum 3 (İptal) değilse 'İptal' butonunu göster -->
-                <button type="button" class="btn btn-danger" id="btn-cancel" onclick="updateStatusAjax(@Model.Id, 3)" style="display: @(Model.Status == 3 ? "none" : "block")">Cezayı İptal Et</button>
+                <button type="button" class="btn btn-danger" id="btn-cancel" onclick="cancelFine(@Model.Id)" style="display: @(Model.Status == 3 ? "none" : "block")">Cezayı İptal Et</button>
                 
                 <a asp-action="Index" class="btn btn-secondary ms-auto">Listeye Dön</a>
             </div>
@@ -52,22 +52,87 @@
     </div>
 </div>
 
+<div class="card shadow-sm mt-4">
+    <div class="card-header bg-secondary text-white">
+        <h5 class="mb-0">Onay ve İşlem Geçmişi</h5>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-striped table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>İşlem Tarihi</th>
+                    <th>İşlem Tipi</th>
+                    <th>Açıklama / Ret Nedeni</th>
+                    <th>Kullanıcı (UID)</th>
+                </tr>
+            </thead>
+            <tbody id="history-table-body">
+                @if (ViewBag.Histories != null && ((List<TrafficFineSystem.WebApp.Models.FineHistoryViewModel>)ViewBag.Histories).Any())
+                {
+                    foreach (var history in (List<TrafficFineSystem.WebApp.Models.FineHistoryViewModel>)ViewBag.Histories)
+                    {
+                        <tr>
+                            <td>@history.ProcessDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</td>
+                            <td>
+                                @if (history.ProcessType.Contains("İptal") || history.NewStatus == 3)
+                                {
+                                    <span class="badge bg-danger">İptal Edildi</span>
+                                }
+                                else if (history.NewStatus == 2)
+                                {
+                                    <span class="badge bg-success">Ödendi</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-info text-dark">@history.ProcessType</span>
+                                }
+                            </td>
+                            <!-- İŞTE GİRDİĞİN İPTAL NEDENİ BURADA YAZACAK! -->
+                            <td class="text-wrap" style="max-width: 300px;">@history.Reason</td>
+                            <td><small class="text-muted">@history.UserId</small></td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-3">Bu ceza için henüz bir işlem geçmişi bulunmuyor.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
 
 
 
 @section Scripts {
     <script>
-        async function updateStatusAjax(id, newStatus) {
-            // 1. Tıklanır tıklanmaz butonları kitle (Çift tıklanıp sistemi yormasın)
+        // İptal butonuna basılınca çalışacak özel metot
+        async function cancelFine(id) {
+            // Kullanıcıdan iptal nedenini girmesini istiyoruz
+            const reason = prompt("Lütfen cezanın iptal/ret nedenini giriniz:");
+
+            // Eğer iptal tuşuna basar veya boş bırakırsa işlemi durdur
+            if (reason === null || reason.trim() === "") {
+                alert("İşlem durduruldu! Ret işlemi için bir neden belirtmek zorunludur.");
+                return;
+            }
+
+            // Nedeni aldıysak ana fonksiyona gönder
+            await updateStatusAjax(id, 3, reason);
+        }
+
+        // Ana AJAX güncelleme metodu (reason parametresi eklendi)
+        async function updateStatusAjax(id, newStatus, reason = "") {
             document.querySelectorAll('#action-buttons button').forEach(b => b.disabled = true);
 
-            // 2. Veriyi paketle
             const formData = new FormData();
             formData.append('id', id);
             formData.append('newStatus', newStatus);
+            formData.append('reason', reason); // YENİ: Nedeni backend'e yolluyoruz
 
             try {
-                // 3. Controller'a arka plandan sessizce isteği gönder (AJAX)
                 const response = await fetch('/Fines/UpdateStatus', {
                     method: 'POST',
                     body: formData
@@ -76,7 +141,6 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    // 1. Ekrandaki rozeti (badge) güncelle
                     const statusDiv = document.getElementById('status-badge');
                     if (newStatus === 1) {
                         statusDiv.innerHTML = '<span class="badge bg-warning text-dark fs-6">Yeni</span>';
@@ -86,21 +150,62 @@
                         statusDiv.innerHTML = '<span class="badge bg-danger fs-6">İptal Edildi</span>';
                     }
 
-                    // 2. Butonları duruma göre göster/gizle (SİLME)
                     document.getElementById('btn-new').style.display = newStatus === 1 ? 'none' : 'block';
                     document.getElementById('btn-pay').style.display = newStatus === 2 ? 'none' : 'block';
                     document.getElementById('btn-cancel').style.display = newStatus === 3 ? 'none' : 'block';
 
-                    // 3. Tıklama engelini kaldır ki tekrar basılabilsin
-                    document.querySelectorAll('#action-buttons button').forEach(b => b.disabled = false);
-
                 } else {
                     alert("Hata: " + result.message);
-                    document.querySelectorAll('#action-buttons button').forEach(b => b.disabled = false);
                 }
             } catch (error) {
                 console.error("İstek atılırken hata:", error);
+                alert("Sistemle bağlantı kurulamadı.");
+            } finally {
                 document.querySelectorAll('#action-buttons button').forEach(b => b.disabled = false);
+            }
+        }
+
+        // SignalR tetiklediğinde arka planda sadece tabloyu yenileyen efsanevi fonksiyon
+        async function refreshHistoryTable() {
+            const fineId = @Model.Id;
+            try {
+                // Audit.API'den taze veriyi çekiyoruz (Port 5297)
+                const response = await fetch(`http://localhost:5297/api/Histories/fine/${fineId}`);
+                if (response.ok) {
+                    const histories = await response.json();
+                    const tbody = document.getElementById('history-table-body');
+                    tbody.innerHTML = ''; // Eski verileri temizle
+
+                    if (histories && histories.length > 0) {
+                        histories.forEach(h => {
+                            // C#'tan gelen tarihi JS ile formatla
+                            const dateObj = new Date(h.processDate);
+                            const formattedDate = dateObj.toLocaleString('tr-TR');
+
+                            // Duruma göre Badge rengini ayarla
+                            let badge = '';
+                            if (h.processType.includes('İptal') || h.newStatus === 3) {
+                                badge = '<span class="badge bg-danger">İptal Edildi</span>';
+                            } else if (h.newStatus === 2) {
+                                badge = '<span class="badge bg-success">Ödendi</span>';
+                            } else {
+                                badge = `<span class="badge bg-info text-dark">${h.processType}</span>`;
+                            }
+
+                            // Yeni satırı oluştur ve tabloya ekle
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td>${formattedDate}</td>
+                                <td>${badge}</td>
+                                <td class="text-wrap" style="max-width: 300px;">${h.reason}</td>
+                                <td><small class="text-muted">${h.userId}</small></td>
+                            `;
+                            tbody.appendChild(tr);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error("Geçmiş güncellenemedi:", error);
             }
         }
     </script>

@@ -100,8 +100,16 @@
         // 1. MEVCUT: Cezalar için dinleyici
         connection.on("ReceiveFineNotification", function (message) {
             console.log("Sistemde bir değişiklik oldu...", message);
+
             if (!window.location.href.includes("Details")) {
+                // Detay sayfasında değilsek (Örn: Listede) sayfayı komple yenile
                 window.location.reload();
+            } else {
+                // YENİ EKLENEN KISIM: Detay sayfasındaysak sayfayı KESİNLİKLE YENİLEME!
+                // Sadece tabloyu sessizce güncelle (Eğer fonksiyon o sayfada tanımlıysa)
+                if (typeof refreshHistoryTable === "function") {
+                    refreshHistoryTable();
+                }
             }
         });
 

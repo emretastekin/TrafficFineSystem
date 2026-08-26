@@ -103,35 +103,49 @@ public class FinesController : Controller
     public async Task<IActionResult> Details(int id)
     {
         var client = _httpClientFactory.CreateClient("CoreApi");
-        
-        // YENİ EKLENEN KISIM: Kimliğimizi (Token) bu isteğe de ekliyoruz
         var token = Request.Cookies["AuthToken"];
         if (!string.IsNullOrEmpty(token))
         {
             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         }
 
+        // 1. Core.API'den ceza detayını çekiyoruz
         var response = await client.GetAsync($"/api/Fines/{id}");
-
-        if (response.IsSuccessStatusCode)
+        if (!response.IsSuccessStatusCode)
         {
-            var jsonString = await response.Content.ReadAsStringAsync();
-            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var fine = JsonSerializer.Deserialize<TrafficFineViewModel>(jsonString, jsonOptions);
-            
-            return View(fine);
+            throw new Exception("Ceza detayları alınamadı.");
         }
 
-        // HATA YAKALAYICIYI AKTİF ETTİK:
-        var error = await response.Content.ReadAsStringAsync();
-        throw new Exception($"API'den Hata Geldi: {response.StatusCode} - {error}");
+        var jsonString = await response.Content.ReadAsStringAsync();
+        var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var fine = JsonSerializer.Deserialize<TrafficFineViewModel>(jsonString, jsonOptions);
+
+        // 2. YENİ EKLENEN: Audit.API'den işlem geçmişini çekiyoruz 
+        // (Audit.API portunun 5297 olduğunu Layout dosyasındaki SignalR bağlantısından biliyoruz)
+        using var auditClient = new HttpClient();
+        var historyResponse = await auditClient.GetAsync($"http://localhost:5297/api/Histories/fine/{id}");
         
+        if (historyResponse.IsSuccessStatusCode)
+        {
+            var historyJson = await historyResponse.Content.ReadAsStringAsync();
+            var histories = JsonSerializer.Deserialize<List<FineHistoryViewModel>>(historyJson, jsonOptions);
+            
+            // Geçmiş listesini ViewBag ile arayüze (View'a) aktarıyoruz
+            ViewBag.Histories = histories;
+        }
+        else
+        {
+            ViewBag.Histories = new List<FineHistoryViewModel>(); // Hata olursa boş liste gitsin
+        }
+
+        return View(fine);
     }
+    
     
 
     // Cezanın durumunu günceller (POST)
     [HttpPost]
-    public async Task<IActionResult> UpdateStatus([FromForm] int id, [FromForm] int newStatus)
+    public async Task<IActionResult> UpdateStatus([FromForm] int id, [FromForm] int newStatus, [FromForm] string reason = "")
     {
         var client = _httpClientFactory.CreateClient("CoreApi");
         
@@ -141,18 +155,21 @@ public class FinesController : Controller
             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         }
 
-        var payload = new { NewStatus = newStatus, Reason = "Durum web arayüzünden güncellendi (AJAX)." };
+        // Eğer işlem iptal (3) ise kullanıcının yazdığı nedeni, ödeme (2) ise standart bir metni kullanıyoruz.
+        string finalReason = newStatus == 3 ? reason : "Ceza tahsil edildi.";
+
+        var payload = new { NewStatus = newStatus, Reason = finalReason };
         var jsonContent = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
         
         var response = await client.PutAsync($"/api/Fines/{id}/status", jsonContent);
 
         if (response.IsSuccessStatusCode)
         {
-            // İşlem başarılıysa arayüze (JS'e) "Tamamdır" mesajı gönderiyoruz
             return Json(new { success = true });
         }
 
-        return Json(new { success = false, message = "Güncelleme sırasında bir hata oluştu." });
+        var errorMessage = await response.Content.ReadAsStringAsync();
+        return Json(new { success = false, message = $"Güncelleme başarısız: {errorMessage}" });
     }
     
     
