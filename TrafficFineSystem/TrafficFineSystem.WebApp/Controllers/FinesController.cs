@@ -137,6 +137,20 @@ public class FinesController : Controller
         {
             ViewBag.Histories = new List<FineHistoryViewModel>(); // Hata olursa boş liste gitsin
         }
+        
+        
+        // YENİ EKLENEN: Core.API'ye giriş yapan kişinin veritabanında Admin olup olmadığını soruyoruz
+        var adminCheckResponse = await client.GetAsync("/api/Fines/is-admin");
+        if (adminCheckResponse.IsSuccessStatusCode)
+        {
+            var isAdminStr = await adminCheckResponse.Content.ReadAsStringAsync();
+            ViewBag.IsAdmin = bool.Parse(isAdminStr); // true veya false olarak ViewBag'e atıyoruz
+        }
+        else
+        {
+            ViewBag.IsAdmin = false;
+        }
+        
 
         return View(fine);
     }

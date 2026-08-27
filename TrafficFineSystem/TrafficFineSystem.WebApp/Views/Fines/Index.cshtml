@@ -32,9 +32,22 @@
                     <td>@fine.Amount.ToString("C")</td>
                     <td>@fine.IssueDate.ToString("dd.MM.yyyy HH:mm")</td>
                     <td>
-                        @if (fine.Status == 1) { <span class="badge bg-warning text-dark">Yeni</span> }
-                        else if (fine.Status == 2) { <span class="badge bg-success">Ödendi</span> }
-                        else { <span class="badge bg-danger">İptal</span> }
+                        @if (fine.Status == 1)
+                        {
+                            <span class="badge bg-secondary">Yeni</span>
+                        }
+                        else if (fine.Status == 2)
+                        {
+                            <span class="badge bg-warning text-dark">Onay Bekliyor</span>
+                        }
+                        else if (fine.Status == 3)
+                        {
+                            <span class="badge bg-success">Tamamlandı</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger">İptal Edildi</span>
+                        }
                     </td>
                     <td>
                         <a asp-controller="Fines" asp-action="Details" asp-route-id="@fine.Id" class="btn btn-sm btn-info text-white">Detay</a>

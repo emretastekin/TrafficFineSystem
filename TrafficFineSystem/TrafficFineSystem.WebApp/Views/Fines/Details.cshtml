@@ -4,6 +4,8 @@
     ViewData["Title"] = "Ceza Detayı";
 }
 
+
+
 <div class="container mt-4">
     <div class="card shadow-sm border-0">
         <div class="card-header bg-info text-white">
@@ -25,25 +27,38 @@
             <div class="row mb-3">
                 <div class="col-md-3 fw-bold">Mevcut Durum:</div>
                 <div class="col-md-9" id="status-badge">
-                    @if (Model.Status == 1) { <span class="badge bg-warning text-dark fs-6">Yeni</span> }
-                    else if (Model.Status == 2) { <span class="badge bg-success fs-6">Ödendi</span> }
+                    @if (Model.Status == 1) { <span class="badge bg-secondary fs-6">Yeni</span> }
+                    else if (Model.Status == 2) { <span class="badge bg-warning text-dark fs-6">Onay Bekliyor</span> }
+                    else if (Model.Status == 3) { <span class="badge bg-success fs-6">Tamamlandı (Ödendi)</span> }
                     else { <span class="badge bg-danger fs-6">İptal Edildi</span> }
                 </div>
             </div>
 
             <hr />
-            <h5 class="text-secondary">Durum Güncelle</h5>
-            <p class="text-muted small">Cezanın güncel durumunu buradan değiştirebilirsiniz. (Bu işlem Kafka üzerinden arka planda loglanacaktır).</p>
+            
+            
+            @if (ViewBag.IsAdmin == true)
+            {
+                <h5 class="text-secondary">Durum Güncelle (İşlem Hiyerarşisi)</h5>
+                <p class="text-muted small">Cezanın güncel durumunu buradan değiştirebilirsiniz. Tamamlanan veya İptal edilen işlemler kilitlenir.</p>
+            }
+            
             
             <div class="d-flex gap-2 mt-3" id="action-buttons">
-                <!-- Durum 1 (Yeni) değilse 'Geri Al' butonunu göster -->
-                <button type="button" class="btn btn-warning text-dark" id="btn-new" onclick="updateStatusAjax(@Model.Id, 1)" style="display: @(Model.Status == 1 ? "none" : "block")">Geri Al (Yeni)</button>
+                <!-- 1. Aşama: Memur Onaya Gönderir (Eğer durum Yeni ise görünür) -->
+                <button type="button" class="btn btn-primary" id="btn-send-approval" onclick="updateStatusAjax(@Model.Id, 2, 'Yönetici onayı talep edildi.')" style="display: @(Model.Status == 1 ? "inline-block" : "none")">Onaya Gönder</button>
                 
-                <!-- Durum 2 (Ödendi) değilse 'Ödendi' butonunu göster -->
-                <button type="button" class="btn btn-success" id="btn-pay" onclick="updateStatusAjax(@Model.Id, 2)" style="display: @(Model.Status == 2 ? "none" : "block")">Tahsil Edildi (Ödendi)</button>
+                <!-- 2. Aşama: Yönetici Onaylar (Tahsil Eder) (Eğer durum Onay Bekliyor ise görünür) -->
+                <button type="button" class="btn btn-success" id="btn-pay" onclick="updateStatusAjax(@Model.Id, 3, 'Ceza onaylandı ve tahsil edildi.')" style="display: @(Model.Status == 2 ? "inline-block" : "none")">Onayla (Tahsil Et)</button>
                 
-                <!-- Durum 3 (İptal) değilse 'İptal' butonunu göster -->
-                <button type="button" class="btn btn-danger" id="btn-cancel" onclick="cancelFine(@Model.Id)" style="display: @(Model.Status == 3 ? "none" : "block")">Cezayı İptal Et</button>
+                <!-- İptal Etme: Durum 1 veya 2'deyken yapılabilir. 3 veya 4'te ise buton gizlenir -->
+                <button type="button" class="btn btn-danger" id="btn-cancel" onclick="cancelFine(@Model.Id)" style="display: @(Model.Status == 1 || Model.Status == 2 ? "inline-block" : "none")">Cezayı İptal Et</button>
+                
+                <!-- SADECE VERİTABANINDA YETKİSİ OLAN ADMİNLER GÖREBİLİR -->
+                @if (ViewBag.IsAdmin == true)
+                {
+                    <button type="button" class="btn btn-warning text-dark" id="btn-restart" onclick="updateStatusAjax(@Model.Id, 1, 'Admin tarafından süreç yeniden başlatıldı.')" style="display: @(Model.Status == 3 || Model.Status == 4 ? "inline-block" : "none")">Süreci Baştan Başlat (Yetkili)</button>
+                }
                 
                 <a asp-action="Index" class="btn btn-secondary ms-auto">Listeye Dön</a>
             </div>
@@ -61,7 +76,7 @@
             <thead class="table-light">
                 <tr>
                     <th>İşlem Tarihi</th>
-                    <th>İşlem Tipi</th>
+                    <th>İşlem Tipi / Durum</th>
                     <th>Açıklama / Ret Nedeni</th>
                     <th>Kullanıcı (UID)</th>
                 </tr>
@@ -74,20 +89,23 @@
                         <tr>
                             <td>@history.ProcessDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</td>
                             <td>
-                                @if (history.ProcessType.Contains("İptal") || history.NewStatus == 3)
+                                @if (history.NewStatus == 4)
                                 {
                                     <span class="badge bg-danger">İptal Edildi</span>
                                 }
+                                else if (history.NewStatus == 3)
+                                {
+                                    <span class="badge bg-success">Tamamlandı</span>
+                                }
                                 else if (history.NewStatus == 2)
                                 {
-                                    <span class="badge bg-success">Ödendi</span>
+                                    <span class="badge bg-warning text-dark">Onay Bekliyor</span>
                                 }
                                 else
                                 {
-                                    <span class="badge bg-info text-dark">@history.ProcessType</span>
+                                    <span class="badge bg-secondary">Yeni</span>
                                 }
                             </td>
-                            <!-- İŞTE GİRDİĞİN İPTAL NEDENİ BURADA YAZACAK! -->
                             <td class="text-wrap" style="max-width: 300px;">@history.Reason</td>
                             <td><small class="text-muted">@history.UserId</small></td>
                         </tr>
@@ -104,33 +122,25 @@
     </div>
 </div>
 
-
-
 @section Scripts {
     <script>
-        // İptal butonuna basılınca çalışacak özel metot
         async function cancelFine(id) {
-            // Kullanıcıdan iptal nedenini girmesini istiyoruz
             const reason = prompt("Lütfen cezanın iptal/ret nedenini giriniz:");
-
-            // Eğer iptal tuşuna basar veya boş bırakırsa işlemi durdur
             if (reason === null || reason.trim() === "") {
                 alert("İşlem durduruldu! Ret işlemi için bir neden belirtmek zorunludur.");
                 return;
             }
-
-            // Nedeni aldıysak ana fonksiyona gönder
-            await updateStatusAjax(id, 3, reason);
+            // İptal statüsü artık 4 numara oldu.
+            await updateStatusAjax(id, 4, reason);
         }
 
-        // Ana AJAX güncelleme metodu (reason parametresi eklendi)
         async function updateStatusAjax(id, newStatus, reason = "") {
             document.querySelectorAll('#action-buttons button').forEach(b => b.disabled = true);
 
             const formData = new FormData();
             formData.append('id', id);
             formData.append('newStatus', newStatus);
-            formData.append('reason', reason); // YENİ: Nedeni backend'e yolluyoruz
+            formData.append('reason', reason);
 
             try {
                 const response = await fetch('/Fines/UpdateStatus', {
@@ -142,18 +152,28 @@
 
                 if (result.success) {
                     const statusDiv = document.getElementById('status-badge');
+                    
                     if (newStatus === 1) {
-                        statusDiv.innerHTML = '<span class="badge bg-warning text-dark fs-6">Yeni</span>';
+                        statusDiv.innerHTML = '<span class="badge bg-secondary fs-6">Yeni</span>';
                     } else if (newStatus === 2) {
-                        statusDiv.innerHTML = '<span class="badge bg-success fs-6">Ödendi</span>';
+                        statusDiv.innerHTML = '<span class="badge bg-warning text-dark fs-6">Onay Bekliyor</span>';
                     } else if (newStatus === 3) {
+                        statusDiv.innerHTML = '<span class="badge bg-success fs-6">Tamamlandı (Ödendi)</span>';
+                    } else if (newStatus === 4) {
                         statusDiv.innerHTML = '<span class="badge bg-danger fs-6">İptal Edildi</span>';
                     }
 
-                    document.getElementById('btn-new').style.display = newStatus === 1 ? 'none' : 'block';
-                    document.getElementById('btn-pay').style.display = newStatus === 2 ? 'none' : 'block';
-                    document.getElementById('btn-cancel').style.display = newStatus === 3 ? 'none' : 'block';
+                    document.getElementById('btn-send-approval').style.display = newStatus === 1 ? 'inline-block' : 'none';
+                    document.getElementById('btn-pay').style.display = newStatus === 2 ? 'inline-block' : 'none';
+                    document.getElementById('btn-cancel').style.display = (newStatus === 1 || newStatus === 2) ? 'inline-block' : 'none';
 
+                    // YENİ BUTONUN GÖRÜNÜRLÜK AYARI
+                    const btnRestart = document.getElementById('btn-restart');
+                    if (btnRestart) {
+                        btnRestart.style.display = (newStatus === 3 || newStatus === 4) ? 'inline-block' : 'none';
+                    }
+                    
+                    
                 } else {
                     alert("Hata: " + result.message);
                 }
@@ -165,34 +185,31 @@
             }
         }
 
-        // SignalR tetiklediğinde arka planda sadece tabloyu yenileyen efsanevi fonksiyon
         async function refreshHistoryTable() {
             const fineId = @Model.Id;
             try {
-                // Audit.API'den taze veriyi çekiyoruz (Port 5297)
                 const response = await fetch(`http://localhost:5297/api/Histories/fine/${fineId}`);
                 if (response.ok) {
                     const histories = await response.json();
                     const tbody = document.getElementById('history-table-body');
-                    tbody.innerHTML = ''; // Eski verileri temizle
+                    tbody.innerHTML = ''; 
 
                     if (histories && histories.length > 0) {
                         histories.forEach(h => {
-                            // C#'tan gelen tarihi JS ile formatla
                             const dateObj = new Date(h.processDate);
                             const formattedDate = dateObj.toLocaleString('tr-TR');
 
-                            // Duruma göre Badge rengini ayarla
                             let badge = '';
-                            if (h.processType.includes('İptal') || h.newStatus === 3) {
+                            if (h.newStatus === 4) {
                                 badge = '<span class="badge bg-danger">İptal Edildi</span>';
+                            } else if (h.newStatus === 3) {
+                                badge = '<span class="badge bg-success">Tamamlandı</span>';
                             } else if (h.newStatus === 2) {
-                                badge = '<span class="badge bg-success">Ödendi</span>';
+                                badge = '<span class="badge bg-warning text-dark">Onay Bekliyor</span>';
                             } else {
-                                badge = `<span class="badge bg-info text-dark">${h.processType}</span>`;
+                                badge = `<span class="badge bg-secondary">Yeni</span>`;
                             }
 
-                            // Yeni satırı oluştur ve tabloya ekle
                             const tr = document.createElement('tr');
                             tr.innerHTML = `
                                 <td>${formattedDate}</td>

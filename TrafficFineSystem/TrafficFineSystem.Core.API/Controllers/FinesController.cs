@@ -8,6 +8,7 @@ using TrafficFineSystem.Shared.Enums;
 using TrafficFineSystem.Shared.Events;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 
 namespace TrafficFineSystem.Core.API.Controllers;
 
@@ -137,29 +138,59 @@ public class FinesController : ControllerBase
             return NotFound("Ceza bulunamadı.");
 
         var previousStatus = fine.Status;
+
+        // --- İŞ KURALLARI (BUSINESS RULES) KİLİTLERİ ---
+
+        // Kural 1: Onaylanmış (Tamamlandı) kayıt değiştirilemez.
+        // İSTİSNA: Sadece Admin rolüne sahip kişi "Yeni" (1) statüsüne çekerek süreci baştan başlatabilir.
+        if (previousStatus == FineStatus.Tamamlandi && request.NewStatus != 1)
+        {
+            return BadRequest("İşlem engellendi: Bu ceza onaylanmış ve tahsil edilmiştir. Geçmişe dönük değişiklik yapılamaz.");
+        }
+
+        // Kural 2: İptal edilmiş kayıt tekrar işleme alınamaz.
+        // İSTİSNA: Sadece Admin rolüne sahip kişi "Yeni" (1) statüsüne çekerek süreci baştan başlatabilir.
+        if (previousStatus == FineStatus.IptalEdildi && request.NewStatus != 1)
+        {
+            return BadRequest("İşlem engellendi: Bu ceza iptal edilerek kilitlenmiştir. İşleme devam etmek için yeni bir ceza kaydı oluşturmalısınız veya yetkili bir yönetici süreci baştan başlatmalıdır.");
+        }
+        // -----------------------------------------------
+
         fine.Status = (FineStatus)request.NewStatus;
         
-        // Önce kendi veritabanımızda cezayı güncelliyoruz
         await _context.SaveChangesAsync();
 
-        // Kafka için event modelimizi oluşturuyoruz
         var statusEvent = new FineStatusChangedEvent
         {
             TrafficFineId = fine.Id,
-            UserId = "System", // İleride Firebase entegrasyonuyla buraya gerçek User ID gelecek
+            UserId = "System", // İleride gerçek User ID gelecek
             ProcessDate = DateTime.UtcNow,
-            ProcessType = "Güncelleme",
+            ProcessType = request.NewStatus == 2 ? "Onaya Gönderildi" : "Durum Güncellemesi",
             Reason = request.Reason,
             PreviousStatus = (int)previousStatus,
             NewStatus = request.NewStatus
         };
 
-        // Mesajı Kafka'ya fırlatıyoruz
         await _kafkaProducerService.ProduceFineStatusChangedEventAsync(statusEvent);
-        
         await _cache.RemoveAsync("finesList");
 
-        return Ok(new { Message = "Ceza durumu başarıyla güncellendi ve loglandı.", Fine = fine });
+        return Ok(new { Message = "Ceza durumu başarıyla güncellendi.", Fine = fine });
+    }
+    
+    
+    [HttpGet("is-admin")]
+    public async Task<IActionResult> CheckIfAdmin()
+    {
+        // 1. JWT Token içinden Firebase UID'sini alıyoruz
+        var uid = User.Claims.FirstOrDefault(c => c.Type == "user_id" || c.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value;
+        
+        if (string.IsNullOrEmpty(uid)) 
+            return Ok(false);
+
+        // 2. Veritabanındaki UserRoles tablosuna bakıyoruz: Bu UID'nin RoleId = 1 (Admin) yetkisi var mı?
+        var isAdmin = await _context.UserRoles.AnyAsync(ur => ur.UserId == uid && ur.RoleId == 1);
+        
+        return Ok(isAdmin);
     }
     
 }
