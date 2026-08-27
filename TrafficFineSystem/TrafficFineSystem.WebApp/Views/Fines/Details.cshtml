@@ -45,18 +45,19 @@
             
             
             <div class="d-flex gap-2 mt-3" id="action-buttons">
-                <!-- 1. Aşama: Memur Onaya Gönderir (Eğer durum Yeni ise görünür) -->
+                <!-- 1. Aşama: Memur Onaya Gönderir (Herkese Açık) -->
                 <button type="button" class="btn btn-primary" id="btn-send-approval" onclick="updateStatusAjax(@Model.Id, 2, 'Yönetici onayı talep edildi.')" style="display: @(Model.Status == 1 ? "inline-block" : "none")">Onaya Gönder</button>
                 
-                <!-- 2. Aşama: Yönetici Onaylar (Tahsil Eder) (Eğer durum Onay Bekliyor ise görünür) -->
-                <button type="button" class="btn btn-success" id="btn-pay" onclick="updateStatusAjax(@Model.Id, 3, 'Ceza onaylandı ve tahsil edildi.')" style="display: @(Model.Status == 2 ? "inline-block" : "none")">Onayla (Tahsil Et)</button>
-                
-                <!-- İptal Etme: Durum 1 veya 2'deyken yapılabilir. 3 veya 4'te ise buton gizlenir -->
-                <button type="button" class="btn btn-danger" id="btn-cancel" onclick="cancelFine(@Model.Id)" style="display: @(Model.Status == 1 || Model.Status == 2 ? "inline-block" : "none")">Cezayı İptal Et</button>
-                
-                <!-- SADECE VERİTABANINDA YETKİSİ OLAN ADMİNLER GÖREBİLİR -->
+                <!-- SADECE ADMİNLERİN GÖREBİLECEĞİ BUTONLAR -->
                 @if (ViewBag.IsAdmin == true)
                 {
+                    <!-- 2. Aşama: Yönetici Onaylar -->
+                    <button type="button" class="btn btn-success" id="btn-pay" onclick="updateStatusAjax(@Model.Id, 3, 'Ceza onaylandı ve tahsil edildi.')" style="display: @(Model.Status == 2 ? "inline-block" : "none")">Onayla (Tahsil Et)</button>
+                    
+                    <!-- Yönetici İptal Eder -->
+                    <button type="button" class="btn btn-danger" id="btn-cancel" onclick="cancelFine(@Model.Id)" style="display: @(Model.Status == 1 || Model.Status == 2 ? "inline-block" : "none")">Cezayı İptal Et</button>
+                    
+                    <!-- Yönetici Süreci Baştan Başlatır -->
                     <button type="button" class="btn btn-warning text-dark" id="btn-restart" onclick="updateStatusAjax(@Model.Id, 1, 'Admin tarafından süreç yeniden başlatıldı.')" style="display: @(Model.Status == 3 || Model.Status == 4 ? "inline-block" : "none")">Süreci Baştan Başlat (Yetkili)</button>
                 }
                 
@@ -163,15 +164,18 @@
                         statusDiv.innerHTML = '<span class="badge bg-danger fs-6">İptal Edildi</span>';
                     }
 
-                    document.getElementById('btn-send-approval').style.display = newStatus === 1 ? 'inline-block' : 'none';
-                    document.getElementById('btn-pay').style.display = newStatus === 2 ? 'inline-block' : 'none';
-                    document.getElementById('btn-cancel').style.display = (newStatus === 1 || newStatus === 2) ? 'inline-block' : 'none';
+                    // JavaScript Kodundaki Görünürlük Ayarları:
+                    const btnSend = document.getElementById('btn-send-approval');
+                    if (btnSend) btnSend.style.display = newStatus === 1 ? 'inline-block' : 'none';
 
-                    // YENİ BUTONUN GÖRÜNÜRLÜK AYARI
+                    const btnPay = document.getElementById('btn-pay');
+                    if (btnPay) btnPay.style.display = newStatus === 2 ? 'inline-block' : 'none';
+
+                    const btnCancel = document.getElementById('btn-cancel');
+                    if (btnCancel) btnCancel.style.display = (newStatus === 1 || newStatus === 2) ? 'inline-block' : 'none';
+
                     const btnRestart = document.getElementById('btn-restart');
-                    if (btnRestart) {
-                        btnRestart.style.display = (newStatus === 3 || newStatus === 4) ? 'inline-block' : 'none';
-                    }
+                    if (btnRestart) btnRestart.style.display = (newStatus === 3 || newStatus === 4) ? 'inline-block' : 'none';
                     
                     
                 } else {

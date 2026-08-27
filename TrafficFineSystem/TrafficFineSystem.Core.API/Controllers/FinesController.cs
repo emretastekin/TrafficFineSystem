@@ -130,7 +130,7 @@ public class FinesController : ControllerBase
     
     
     [HttpPut("{id}/status")]
-    [HasPermission("Fines.Update")]
+    // [HasPermission("Fines.Update")] 
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateFineStatusRequest request)
     {
         var fine = await _context.Fines.FindAsync(id);
@@ -139,22 +139,34 @@ public class FinesController : ControllerBase
 
         var previousStatus = fine.Status;
 
-        // --- İŞ KURALLARI (BUSINESS RULES) KİLİTLERİ ---
+        // 1. Kullanıcının kimliğini al ve Admin olup olmadığını kontrol et
+        var uid = User.Claims.FirstOrDefault(c => c.Type == "user_id" || c.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value;
+        bool isAdmin = await _context.UserRoles.AnyAsync(ur => ur.UserId == uid && ur.RoleId == 1);
+
+        // --- İŞ KURALLARI (BUSINESS RULES) ---
+        
+        // YENİ KURAL 3: HİYERARŞİK ONAY SÜRECİ
+        if (!isAdmin)
+        {
+            // Eğer giriş yapan kişi Admin değilse (Memur ise), SADECE "Yeni" (1) durumunu "Onay Bekliyor" (2) yapabilir!
+            if (previousStatus != FineStatus.Yeni || request.NewStatus != 2)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, "Yetki Hatası: Memurlar sadece yeni cezaları onaya gönderebilir. Onaylama veya İptal işlemleri Yönetici yetkisi gerektirir.");
+            }
+        }
 
         // Kural 1: Onaylanmış (Tamamlandı) kayıt değiştirilemez.
-        // İSTİSNA: Sadece Admin rolüne sahip kişi "Yeni" (1) statüsüne çekerek süreci baştan başlatabilir.
         if (previousStatus == FineStatus.Tamamlandi && request.NewStatus != 1)
         {
             return BadRequest("İşlem engellendi: Bu ceza onaylanmış ve tahsil edilmiştir. Geçmişe dönük değişiklik yapılamaz.");
         }
 
         // Kural 2: İptal edilmiş kayıt tekrar işleme alınamaz.
-        // İSTİSNA: Sadece Admin rolüne sahip kişi "Yeni" (1) statüsüne çekerek süreci baştan başlatabilir.
         if (previousStatus == FineStatus.IptalEdildi && request.NewStatus != 1)
         {
-            return BadRequest("İşlem engellendi: Bu ceza iptal edilerek kilitlenmiştir. İşleme devam etmek için yeni bir ceza kaydı oluşturmalısınız veya yetkili bir yönetici süreci baştan başlatmalıdır.");
+            return BadRequest("İşlem engellendi: Bu ceza iptal edilerek kilitlenmiştir.");
         }
-        // -----------------------------------------------
+        // -------------------------------------
 
         fine.Status = (FineStatus)request.NewStatus;
         

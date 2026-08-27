@@ -169,8 +169,9 @@ public class FinesController : Controller
             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         }
 
-        // Eğer işlem iptal (3) ise kullanıcının yazdığı nedeni, ödeme (2) ise standart bir metni kullanıyoruz.
-        string finalReason = newStatus == 3 ? reason : "Ceza tahsil edildi.";
+        
+        // Eğer boş gelirse (tedbiren) "Durum güncellendi" yaz.
+        string finalReason = string.IsNullOrWhiteSpace(reason) ? "Durum güncellendi." : reason;
 
         var payload = new { NewStatus = newStatus, Reason = finalReason };
         var jsonContent = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
