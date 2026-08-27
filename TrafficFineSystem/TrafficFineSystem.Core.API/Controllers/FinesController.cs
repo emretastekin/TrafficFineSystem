@@ -205,6 +205,41 @@ public class FinesController : ControllerBase
         return Ok(isAdmin);
     }
     
+    
+    // Dashboard için özet istatistikleri getirir
+    [HttpGet("dashboard-stats")]
+    public async Task<IActionResult> GetDashboardStats()
+    {
+        var fines = await _context.Fines.ToListAsync();
+
+        var totalPaidAmount = fines.Where(f => f.Status == FineStatus.Tamamlandi).Sum(f => f.Amount);
+        
+        // YENİ EKLENEN: Tahsil edilen ceza adeti
+        var paidCount = fines.Count(f => f.Status == FineStatus.Tamamlandi); 
+        
+        var pendingCount = fines.Count(f => f.Status == FineStatus.OnayBekliyor);
+        var newCount = fines.Count(f => f.Status == FineStatus.Yeni);
+        var canceledCount = fines.Count(f => f.Status == FineStatus.IptalEdildi);
+        // YENİ EKLENEN: Veritabanındaki toplam araç sayısını çekiyoruz
+        var totalVehicles = await _context.Vehicles.CountAsync();
+        
+        // YENİ EKLENEN: Araçları "Tiplerine" göre gruplayıp sayıyoruz (Binek: 5, Çekici: 2 vb.)
+        var vehicles = await _context.Vehicles.ToListAsync();
+        var vehicleTypeStats = vehicles.GroupBy(v => v.Type)
+            .ToDictionary(g => g.Key.ToString(), g => g.Count());
+
+        return Ok(new
+        {
+            TotalPaidAmount = totalPaidAmount,
+            PaidFinesCount = paidCount, // YENİ EKLENEN
+            PendingApprovals = pendingCount,
+            NewFines = newCount,
+            CanceledFines = canceledCount,
+            TotalVehicles = totalVehicles,
+            VehicleTypeStats = vehicleTypeStats
+        });
+    }
+    
 }
 
 // Controller'ın en altına veya Shared klasörüne bu DTO'yu ekleyebilirsin

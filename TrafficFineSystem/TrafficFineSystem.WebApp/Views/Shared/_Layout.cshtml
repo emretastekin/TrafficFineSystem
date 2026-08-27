@@ -32,7 +32,7 @@
     <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
         <div class="container-fluid">
             <!-- Sol üstteki ana başlık -->
-            <a class="navbar-brand" asp-area="" asp-controller="Fines" asp-action="Index">Trafik Ceza Yönetimi</a>
+            <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">Trafik Ceza Yönetimi</a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
                     aria-expanded="false" aria-label="Toggle navigation">
@@ -41,7 +41,11 @@
             
             <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                 <ul class="navbar-nav flex-grow-1">
-                    <!-- Sadece bizim menülerimiz -->
+                    
+                    <li class="nav-item">
+                        <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Dashboard</a>
+                    </li>
+                    
                     <li class="nav-item">
                         <a class="nav-link text-dark" asp-area="" asp-controller="Fines" asp-action="Index">Cezalar</a>
                     </li>

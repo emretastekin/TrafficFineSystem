@@ -58,7 +58,7 @@ public class AuthController : Controller
             Response.Cookies.Append("AuthToken", token!, cookieOptions);
 
             // Başarıyla giriş yaptıysa cezalar sayfasına yönlendir
-            return RedirectToAction("Index", "Fines");
+            return RedirectToAction("Index", "Home");
         }
 
         // Hata durumunda (Yanlış şifre vb.)
