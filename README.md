@@ -1,5 +1,13 @@
 Traffic Fine Management System (TrafficFineSystem)
 
+
+=====================================================
+
+Web Test Otomasyonu Videosu: https://drive.google.com/file/d/1cGSYiI_ZiBB6sai1bBfRVjL52UnShxNV/view?usp=sharing
+
+=====================================================
+
+
 -->
 
 .NET 9 teknolojisi, Microservices mimari yaklaşımları ve Event-Driven (Olay Tabanlı) iletişim modelleri kullanılarak geliştirilmiş kapsamlı bir Trafik Cezası Yönetim ve Denetim (Audit) sistemidir. Sistem, güçlü bir arka plan (Backend) mimarisi ile kullanıcı dostu, gerçek zamanlı güncellenen bir Yönetim Paneli (Frontend) sunar.
